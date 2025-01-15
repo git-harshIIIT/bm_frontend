@@ -1,0 +1,60 @@
+@if (filterVariant() === 'range') {
+    <div>
+      <div class="flex space-x-2">
+        <input
+          
+          type="number"
+          class="w-24 border shadow rounded"
+          [min]="column().getFacetedMinMaxValues()?.[0] ?? ''"
+          [max]="column().getFacetedMinMaxValues()?.[1] ?? ''"
+          [value]="columnFilterValue()?.[0] ?? ''"
+          [attr.placeholder]="minRangePlaceholder()"
+          (input)="changeMinRangeValue($event)"
+        />
+
+        <input
+          
+          type="number"
+          class="w-24 border shadow rounded"
+          [min]="column().getFacetedMinMaxValues()?.[0] ?? ''"
+          [max]="column().getFacetedMinMaxValues()?.[1] ?? ''"
+          [value]="columnFilterValue()?.[1] ?? ''"
+          [attr.placeholder]="maxRangePlaceholder()"
+          (input)="changeMaxRangeValue($event)"
+        />
+      </div>
+      <div class="h-1"></div>
+    </div>
+  } @else if (filterVariant() === 'select') {
+    <select
+      [value]="columnFilterValue()?.toString()"
+      (change)="column().setFilterValue($any($event).target.value)"
+    >
+      <option value="">All</option>
+      @for (value of sortedUniqueValues(); track value) {
+        <option [value]="value">
+          {{ value }}
+        </option>
+      }
+    </select>
+  } @else {
+    <datalist [id]="column().id + 'list'">
+      @for (value of sortedUniqueValues(); track value) {
+        <option [value]="value">
+          {{ value }}
+        </option>
+      }
+    </datalist>
+    <input
+      type="text"
+      class="w-36 border shadow rounded"
+      
+      [attr.placeholder]="
+        'Search... (' + column().getFacetedUniqueValues().size + ')'
+      "
+      [attr.list]="column().id + 'list'"
+      [value]="columnFilterValue() ?? ''"
+      (input)="column().setFilterValue($any($event).target.value)"
+    />
+    <div class="h-1"></div>
+  }
