@@ -1,0 +1,36 @@
+.table-container {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+  }
+  
+  .table-header {
+    position: sticky;
+    top: 0;
+    background-color: rgb(255, 255, 255); /* Adjust as needed */
+    z-index: 1;
+  }
+
+  .pagination-controls {
+    position: sticky;
+    bottom: 0;
+    background-color: white; /* Adjust as needed */
+    z-index: 1;
+    padding: 8px 0; /* Adjust as needed */
+  }
+  .addsubrows .flex {
+    display: flex;
+    gap: 8px; /* Adjust the gap as needed */
+  }
+
+  .addsubrows button {
+    flex: 1; /* Make buttons take equal space */
+    min-width: 100px; /* Adjust as needed */
+  }
+
+  .sticky-header {
+    position: sticky;
+    top: 0;
+    background-color: white; /* Ensure background color is set */
+    z-index: 3; /* Ensure it is above other elements */
+  }

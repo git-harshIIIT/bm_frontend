@@ -7,7 +7,9 @@ export type Person = {
   visits: number
   progress: number
   status: 'relationship' | 'complicated' | 'single'
-  subRows?: Person[]
+  
+  children?: Person[]
+  isExpanded?: boolean
 }
 
 const range = (len: number) => {
@@ -18,7 +20,7 @@ const range = (len: number) => {
   return arr
 }
 
-const newPerson = (): Person => {
+export const newPerson = (): Person => {
   return {
     firstName: faker.person.firstName(),
     lastName: faker.person.lastName(),
@@ -30,6 +32,8 @@ const newPerson = (): Person => {
       'complicated',
       'single',
     ])[0]!,
+    children: [],
+    isExpanded: false,
   }
 }
 
@@ -39,7 +43,7 @@ export function makeData(...lens: number[]) {
     return range(len).map((d): Person => {
       return {
         ...newPerson(),
-        subRows: lens[depth + 1] ? makeDataLevel(depth + 1) : undefined,
+        children: lens[depth +1] ? makeDataLevel(depth + 1) : undefined,
       }
     })
   }

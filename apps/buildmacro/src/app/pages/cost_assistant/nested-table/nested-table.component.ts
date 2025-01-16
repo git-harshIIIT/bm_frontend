@@ -1,9 +1,15 @@
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   computed,
   signal,
+  ViewChild,
+  ElementRef,
+  viewChild,
 } from '@angular/core'
+
+import { injectVirtualizer } from '@tanstack/angular-virtual'
 
 import {
   Column,
@@ -28,9 +34,9 @@ import {
   getPaginationRowModel
 } from '@tanstack/angular-table'
 import { FilterComponent } from './table-filter.component'
-import { makeData,type Person } from './makeData'
+import { makeData,type Person, newPerson } from './makeData'
 import { faker } from '@faker-js/faker'
-import { CommonModule, NgStyle, NgTemplateOutlet, SlicePipe } from '@angular/common'
+import { CommonModule, NgStyle,  } from '@angular/common'
 
 // type Person = {
 //   firstName: string
@@ -103,6 +109,7 @@ const defaultColumns: ColumnDef<Person>[] = [
       filterVariant: 'range',
     },
   },
+  
 ]
 
 @Component({
@@ -122,6 +129,9 @@ export class NestedTableComponent {
   readonly columnOrder = signal<ColumnOrderState>([])
   readonly columnPinning = signal<ColumnPinningState>({})
   readonly split = signal(false)
+
+  @ViewChild('scrollElement') scrollElement!:ElementRef<HTMLDivElement>;
+
   grouping = signal<GroupingState>([])
   stringifiedGrouping = computed(() => JSON.stringify(this.grouping(), null, 2))
 
@@ -160,10 +170,22 @@ export class NestedTableComponent {
     columnResizeMode: 'onChange',
   }))
 
+  rows = computed(() => this.table.getRowModel().rows)
+
+  virtualizer = injectVirtualizer(() => ({
+    scrollElement: this.scrollElement.nativeElement,
+    count: this.data.length,
+    estimateSize: () => 34,
+    overscan: 20,
+  }));
+
+  
+
   onPageInputChange(event: any): void {
     const page = event.target.value ? Number(event.target.value) - 1 : 0
     this.table.setPageIndex(page)
   }
+
 
   onPageSizeChange(event: any) {
     this.table.setPageSize(Number(event.target.value))
@@ -195,6 +217,58 @@ export class NestedTableComponent {
       width: `${column.getSize()}px`,
       zIndex: isPinned ? 1 : 0,
     }
+  }
+
+  constructor(private cdr: ChangeDetectorRef) {}
+
+  addSubCategory(row: Person): void {
+    const newSubCategory: Person = {
+      ...newPerson(), // Use the imported newPerson function
+      children: [], // Initialize as empty for sub-categories
+    };
+  
+    // Create a new children array with the new sub-category
+    const updatedChildren = row.children ? [...row.children, newSubCategory] : [newSubCategory];
+  
+    // Update the row immutably
+    const updatedRow = { ...row, children: updatedChildren };
+  
+    // Update the data array immutably
+    const updatedData = this.data().map((item) => (item === row ? updatedRow : item));
+  
+    // Set the new data
+    this.data.set(updatedData);
+  
+    // Log the newly added children to the console
+    console.log('Newly added sub-category:', newSubCategory);
+    console.log('Updated children array:', updatedChildren);
+    this.cdr.detectChanges();
+    this.table.reset();
+  }
+
+  addLineItem(row: Person): void {
+    const newLineItem: Person = {
+      ...newPerson(),
+    };
+    if (!row.children) {
+      row.children = [];
+    }
+    row.children.push(newLineItem);
+    this.data.set([...this.data()]); // Trigger change detection
+  }
+
+  updateData(row: Person, columnId: string, event: Event): void {
+    const value = (event.target as HTMLInputElement).value
+    const newData = this.data().map(item => {
+      if (item === row) {
+        return {
+          ...item,
+          [columnId]: value,
+        }
+      }
+      return item
+    })
+    this.data.set(newData)
   }
 
   randomizeColumns() {
