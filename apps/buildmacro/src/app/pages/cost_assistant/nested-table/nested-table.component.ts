@@ -6,7 +6,10 @@ import {
   signal,
   ViewChild,
   ElementRef,
+  AfterViewInit,
   viewChild,
+  inject,
+  Injector,
 } from '@angular/core'
 
 import { injectVirtualizer } from '@tanstack/angular-virtual'
@@ -129,8 +132,9 @@ export class NestedTableComponent {
   readonly columnOrder = signal<ColumnOrderState>([])
   readonly columnPinning = signal<ColumnPinningState>({})
   readonly split = signal(false)
+  scrollElement = viewChild<ElementRef<HTMLDivElement>>('scrollElement')
 
-  @ViewChild('scrollElement') scrollElement!:ElementRef<HTMLDivElement>;
+  // @ViewChild('scrollElement') scrollElement!:ElementRef<HTMLDivElement>;
 
   grouping = signal<GroupingState>([])
   stringifiedGrouping = computed(() => JSON.stringify(this.grouping(), null, 2))
@@ -141,7 +145,12 @@ export class NestedTableComponent {
     state: {
       columnFilters: this.columnFilters(),
       grouping: this.grouping(),
+      pagination: {
+        pageIndex: 0,
+        pageSize: 10,
+      },
     },
+    
     onGroupingChange: (updaterOrValue: Updater<GroupingState>) => {
       const groupingState =
         typeof updaterOrValue === 'function'
@@ -170,25 +179,32 @@ export class NestedTableComponent {
     columnResizeMode: 'onChange',
   }))
 
-  rows = computed(() => this.table.getRowModel().rows)
+  
+
+  // virtualizer: any; // Define virtualizer
+  // constructor(private cdr: ChangeDetectorRef, private injector: Injector) {}
 
   virtualizer = injectVirtualizer(() => ({
-    scrollElement: this.scrollElement.nativeElement,
-    count: this.data.length,
-    estimateSize: () => 34,
-    overscan: 20,
+    scrollElement: this.scrollElement(),
+    count: this.table.getRowModel().rows.length, // Use the number of rows in the table
+    estimateSize: () => 30, // Estimate the height of each row
+    overscan: 500, // Number of rows to render outside the visible area
   }));
 
+  rows = computed(() => this.table.getRowModel().rows);
   
 
   onPageInputChange(event: any): void {
-    const page = event.target.value ? Number(event.target.value) - 1 : 0
-    this.table.setPageIndex(page)
+    const page = event.target.value ? Number(event.target.value) - 1 : 0;
+    this.table.setPageIndex(page);
+    this.virtualizer.scrollToIndex(0); // Reset the virtualizer to the top
   }
 
 
   onPageSizeChange(event: any) {
-    this.table.setPageSize(Number(event.target.value))
+    const pageSize = Number(event.target.value);
+  this.table.setPageSize(pageSize);
+  this.virtualizer.scrollToIndex(0); 
   }
 
   stringifiedColumnPinning = computed(() => {
@@ -219,7 +235,7 @@ export class NestedTableComponent {
     }
   }
 
-  constructor(private cdr: ChangeDetectorRef) {}
+  // constructor(private cdr: ChangeDetectorRef) {}
 
   addSubCategory(row: Person): void {
     const newSubCategory: Person = {
@@ -242,7 +258,7 @@ export class NestedTableComponent {
     // Log the newly added children to the console
     console.log('Newly added sub-category:', newSubCategory);
     console.log('Updated children array:', updatedChildren);
-    this.cdr.detectChanges();
+    // this.cdr.detectChanges();
     this.table.reset();
   }
 
