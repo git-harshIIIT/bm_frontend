@@ -41,17 +41,7 @@ import { makeData,type Person, newPerson } from './makeData'
 import { faker } from '@faker-js/faker'
 import { CommonModule, NgStyle,  } from '@angular/common'
 
-// type Person = {
-//   firstName: string
-//   lastName: string
-//   age: number
-//   visits: number
-//   progress: number
-//   status: 'relationship' | 'complicated' | 'single'
-//   subRows?: Person[] 
-  
 
-// }
 
 const defaultColumns: ColumnDef<Person>[] = [
   {
@@ -132,12 +122,18 @@ export class NestedTableComponent {
   readonly columnOrder = signal<ColumnOrderState>([])
   readonly columnPinning = signal<ColumnPinningState>({})
   readonly split = signal(false)
-  scrollElement = viewChild<ElementRef<HTMLDivElement>>('scrollElement')
+
+  
 
   // @ViewChild('scrollElement') scrollElement!:ElementRef<HTMLDivElement>;
 
   grouping = signal<GroupingState>([])
   stringifiedGrouping = computed(() => JSON.stringify(this.grouping(), null, 2))
+
+  readonly pagination = signal({
+    pageIndex: 0,
+    pageSize: 10,
+  });
 
   table = createAngularTable<Person>(() => ({
     data: this.data(),
@@ -145,12 +141,15 @@ export class NestedTableComponent {
     state: {
       columnFilters: this.columnFilters(),
       grouping: this.grouping(),
-      pagination: {
-        pageIndex: 0,
-        pageSize: 10,
-      },
+      pagination: this.pagination(),
     },
-    
+    onPaginationChange: (updater) => {
+      const newPagination =
+        typeof updater === 'function'
+          ? updater(this.pagination())
+          : updater;
+      this.pagination.set(newPagination); // Update the reactive pagination signal
+    },
     onGroupingChange: (updaterOrValue: Updater<GroupingState>) => {
       const groupingState =
         typeof updaterOrValue === 'function'
@@ -182,29 +181,68 @@ export class NestedTableComponent {
   
 
   // virtualizer: any; // Define virtualizer
-  // constructor(private cdr: ChangeDetectorRef, private injector: Injector) {}
+  constructor(private cdr: ChangeDetectorRef) {}
 
-  virtualizer = injectVirtualizer(() => ({
-    scrollElement: this.scrollElement(),
-    count: this.table.getRowModel().rows.length, // Use the number of rows in the table
-    estimateSize: () => 30, // Estimate the height of each row
-    overscan: 500, // Number of rows to render outside the visible area
-  }));
+  scrollElement = viewChild<ElementRef<HTMLDivElement>>('scrollElement')
 
-  rows = computed(() => this.table.getRowModel().rows);
+  virtualizer = computed(() => {
+    const scrollElement = this.scrollElement();
+    if (!scrollElement) {
+      console.error('Scroll element not found!');
+      return null;
+    }
+  
+    const count = this.table.getRowModel().rows.length;
+    console.log('Virtualizer Count:', count); // Debug log
+  
+    return injectVirtualizer(() => ({
+      scrollElement: scrollElement.nativeElement,
+      count,
+      estimateSize: () => 30,
+      overscan: 500,
+      onMeasure: () => {
+        console.log('Virtualizer updated with rows:', count);
+      },
+    }));
+  });
+
+  rows = computed(() => {
+    const rows = this.table.getRowModel().rows;
+    console.log('Rows:', rows); // Debug log
+    return rows;
+  });
   
 
   onPageInputChange(event: any): void {
     const page = event.target.value ? Number(event.target.value) - 1 : 0;
     this.table.setPageIndex(page);
-    this.virtualizer.scrollToIndex(0); // Reset the virtualizer to the top
+    const virtualizerInstance = this.virtualizer();
+    if (virtualizerInstance) {
+      virtualizerInstance.scrollToIndex(0); // Reset the virtualizer to the top
+    }
+    console.log('Current Page Index:', this.table.getState().pagination.pageIndex);
+    console.log('Current Page Size:', this.table.getState().pagination.pageSize);
   }
 
 
   onPageSizeChange(event: any) {
     const pageSize = Number(event.target.value);
-  this.table.setPageSize(pageSize);
-  this.virtualizer.scrollToIndex(0); 
+    this.pagination.update((prev) => ({ ...prev, pageSize }));
+    this.table.reset();
+    
+    const virtualizerInstance = this.virtualizer();
+    if (virtualizerInstance) {
+      virtualizerInstance.scrollToIndex(0); // Reset the virtualizer to the top
+    }
+
+    // Manually trigger change detection
+  this.cdr.detectChanges();
+
+  //debug logs
+    console.log('Table State:', this.table.getState());
+  console.log('Current Page Index:', this.table.getState().pagination.pageIndex);
+  console.log('Current Page Size:', this.table.getState().pagination.pageSize);
+  console.log('Rows:', this.table.getRowModel().rows);
   }
 
   stringifiedColumnPinning = computed(() => {

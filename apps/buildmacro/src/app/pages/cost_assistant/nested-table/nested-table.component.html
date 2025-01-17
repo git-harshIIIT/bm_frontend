@@ -36,256 +36,263 @@
   <div class="h-4"></div>
 
   <div #scrollElement class="table-container scroll-container " style="height: 500px; overflow: auto;">
-    <div *ngIf="virtualizer" [style.height.px]="virtualizer.getTotalSize()">
-      <table style="width: 100%;" [style.width.px]="table.getTotalSize()">
-        <thead class="table-header">
-          @for (headerGroup of table.getHeaderGroups(); track headerGroup.id) {
-            <tr>
-              @for (header of headerGroup.headers; track header.id) {
-                <!-- IMPORTANT: This is where the magic happens! -->
-                <th
-                  [attr.colSpan]="header.colSpan"
-                  [ngStyle]="getCommonPinningStyles(header.column)" class="sticky-header"
-                >
-                @if (header.column.getCanGroup()) {
-                  <!-- If the header can be grouped, let's add a toggle -->
-                  <button
-                    (click)="header.column.toggleGrouping()"
-                    [style.cursor]="'pointer'"
+    @if(virtualizer()){
+      <div *ngIf="virtualizer" [style.height.px]="virtualizer.getTotalSize()">
+        <table style="width: 100%;" [style.width.px]="table.getTotalSize()">
+          <thead class="table-header">
+            @for (headerGroup of table.getHeaderGroups(); track headerGroup.id) {
+              <tr>
+                @for (header of headerGroup.headers; track header.id) {
+                  <!-- IMPORTANT: This is where the magic happens! -->
+                  <th
+                    [attr.colSpan]="header.colSpan"
+                    [ngStyle]="getCommonPinningStyles(header.column)" class="sticky-header"
                   >
-                    @if (header.column.getIsGrouped()) {
-                      Ungroup Column({{ header.column.getGroupedIndex() }})
-                    } @else {
-                      Group Column
+                  @if (header.column.getCanGroup()) {
+                    <!-- If the header can be grouped, let's add a toggle -->
+                    <button
+                      (click)="header.column.toggleGrouping()"
+                      [style.cursor]="'pointer'"
+                    >
+                      @if (header.column.getIsGrouped()) {
+                        Ungroup Column({{ header.column.getGroupedIndex() }})
+                      } @else {
+                        Group Column
+                      }
+                    </button>
+                  }
+                    <div class="whitespace-nowrap">
+                      @if (!header.isPlaceholder) {
+                        <ng-container
+                          *flexRender="
+                            header.column.columnDef.header;
+                            props: header.getContext();
+                            let headerValue
+                          "
+                        >
+                          {{ headerValue }}
+                        </ng-container>
+                      }
+                      <!-- Demo getIndex behavior -->
+                      <!-- {{
+                        header.column.getIndex(
+                          header.column.getIsPinned() || 'center'
+                        )
+                      }} -->
+                    </div>
+    
+                    @if (!header.isPlaceholder && header.column.getCanPin()) {
+                      <div class="flex gap-1 justify-center">
+                        @if (header.column.getIsPinned() !== 'left') {
+                          <button
+                            class="border rounded px-2"
+                            (click)="header.column.pin('left')"
+                          >
+                            pin left
+                          </button>
+                        }
+    
+                        @if (header.column.getIsPinned()) {
+                          <button
+                            class="border rounded px-2"
+                            (click)="header.column.pin(false)"
+                          >
+                            unpin
+                          </button>
+                        }
+    
+                        @if (header.column.getIsPinned() !== 'right') {
+                          <button
+                            class="border rounded px-2"
+                            (click)="header.column.pin('right')"
+                          >
+                            pin right
+                          </button>
+                        }
+                        @if (header.column.getCanFilter()) {
+                          <div>
+                            <app-table-filter
+                              [column]="header.column"
+                              [table]="table"
+                            />
+                          </div>
+                        }
+                      </div>
                     }
-                  </button>
+    
+                    <!-- Resize column -->
+                    <div
+                      class="resizer"
+                      [class.isResizing]="header.column.getIsResizing()"
+                      (dblclick)="header.column.resetSize()"
+                      (mousedown)="header.getResizeHandler()($event)"
+                      (touchstart)="header.getResizeHandler()($event)"
+                    ></div>
+                  </th>
                 }
-                  <div class="whitespace-nowrap">
-                    @if (!header.isPlaceholder) {
-                      <ng-container
-                        *flexRender="
-                          header.column.columnDef.header;
-                          props: header.getContext();
-                          let headerValue
-                        "
-                      >
-                        {{ headerValue }}
-                      </ng-container>
-                    }
-                    <!-- Demo getIndex behavior -->
-                    <!-- {{
-                      header.column.getIndex(
-                        header.column.getIsPinned() || 'center'
-                      )
-                    }} -->
-                  </div>
-  
-                  @if (!header.isPlaceholder && header.column.getCanPin()) {
-                    <div class="flex gap-1 justify-center">
-                      @if (header.column.getIsPinned() !== 'left') {
-                        <button
-                          class="border rounded px-2"
-                          (click)="header.column.pin('left')"
-                        >
-                          pin left
-                        </button>
-                      }
-  
-                      @if (header.column.getIsPinned()) {
-                        <button
-                          class="border rounded px-2"
-                          (click)="header.column.pin(false)"
-                        >
-                          unpin
-                        </button>
-                      }
-  
-                      @if (header.column.getIsPinned() !== 'right') {
-                        <button
-                          class="border rounded px-2"
-                          (click)="header.column.pin('right')"
-                        >
-                          pin right
-                        </button>
-                      }
-                      @if (header.column.getCanFilter()) {
-                        <div>
-                          <app-table-filter
-                            [column]="header.column"
-                            [table]="table"
-                          />
-                        </div>
-                      }
+              </tr>
+            }
+          </thead>
+          <tbody>
+            @for (virtualRow of virtualizer.getVirtualItems(); track virtualRow.index) {
+              <tr
+              [style.height.px]="virtualRow.size"
+              [style.transform]="
+                    'translateY(' +
+                    (virtualRow.start - $index * virtualRow.size) +
+                    'px)'
+                  "
+            >
+            @for (cell of rows()[virtualRow.index].getVisibleCells(); track cell.id) {
+                  <td [style.background]="
+                  cell.getIsGrouped()
+                    ? '#0aff0082'
+                    : cell.getIsAggregated()
+                      ? '#ffa50078'
+                      : cell.getIsPlaceholder()
+                        ? '#ff000042'
+                        : 'white'
+                " [ngStyle]="getCommonPinningStyles(cell.column)">
+                @if (cell.column.id === 'firstName' || cell.column.id === 'lastName'){
+                  @if (cell.getIsGrouped()) {
+                    <!-- If it's a grouped cell, add an expander and row count -->
+                    <button
+                      (click)="rows()[virtualRow.index].toggleExpanded()"
+                      [style.cursor]="rows()[virtualRow.index].getCanExpand() ? 'pointer' : 'normal'"
+                    >
+                      {{ rows()[virtualRow.index].getIsExpanded() ? '👇 ' : '👉' }}
+                    </button>
+                    <div class="editable-cell">
+                      <input
+                        type="text"
+                        [value]="cell.getValue()"
+                        (change)="updateData(rows()[virtualRow.index].original, cell.column.id, $event)"
+                        class="w-full border-none bg-transparent focus:bg-white focus:border focus:border-blue-500 rounded px-1"
+                      />
+                    </div>
+                    {{ ' ' }}{{ rows()[virtualRow.index].subRows.length }}
+                  } @else if (cell.getIsAggregated()) {
+                    <!-- If the cell is aggregated, use the Aggregated -->
+                    <!-- renderer for cell -->
+                    <div class="editable-cell">
+                      <input
+                        type="text"
+                        [value]="cell.getValue()"
+                        (change)="updateData(rows()[virtualRow.index].original, cell.column.id, $event)"
+                        class="w-full border-none bg-transparent focus:bg-white focus:border focus:border-blue-500 rounded px-1"
+                      />
+                    </div>
+                  } @else if (cell.getIsPlaceholder()) {
+                    <ng-container />
+                  } @else {
+                    <!-- For cells with repeated values, render null-->
+                    <!-- Otherwise, just render the regular cell-->
+                    <div class="editable-cell">
+                      <input
+                        type="text"
+                        [value]="cell.getValue()"
+                        (change)="updateData(rows()[virtualRow.index].original, cell.column.id, $event)"
+                        class="w-full border-none bg-transparent focus:bg-white focus:border focus:border-blue-500 rounded px-1"
+                      />
                     </div>
                   }
-  
-                  <!-- Resize column -->
-                  <div
-                    class="resizer"
-                    [class.isResizing]="header.column.getIsResizing()"
-                    (dblclick)="header.column.resetSize()"
-                    (mousedown)="header.getResizeHandler()($event)"
-                    (touchstart)="header.getResizeHandler()($event)"
-                  ></div>
-                </th>
-              }
-            </tr>
-          }
-        </thead>
-        <tbody>
-          @for (virtualRow of virtualizer.getVirtualItems(); track virtualRow.index) {
-            <tr
-            [style.height.px]="virtualRow.size"
-            [style.transform]="'translateY(' + virtualRow.start + 'px)'"
-          >
-          @for (cell of rows()[virtualRow.index].getVisibleCells(); track cell.id) {
-                <td [style.background]="
-                cell.getIsGrouped()
-                  ? '#0aff0082'
-                  : cell.getIsAggregated()
-                    ? '#ffa50078'
-                    : cell.getIsPlaceholder()
-                      ? '#ff000042'
-                      : 'white'
-              " [ngStyle]="getCommonPinningStyles(cell.column)">
-              @if (cell.column.id === 'firstName' || cell.column.id === 'lastName'){
-                @if (cell.getIsGrouped()) {
-                  <!-- If it's a grouped cell, add an expander and row count -->
-                  <button
-                    (click)="rows()[virtualRow.index].toggleExpanded()"
-                    [style.cursor]="rows()[virtualRow.index].getCanExpand() ? 'pointer' : 'normal'"
-                  >
-                    {{ rows()[virtualRow.index].getIsExpanded() ? '👇 ' : '👉' }}
-                  </button>
-                  <div class="editable-cell">
-                    <input
-                      type="text"
-                      [value]="cell.getValue()"
-                      (change)="updateData(rows()[virtualRow.index].original, cell.column.id, $event)"
-                      class="w-full border-none bg-transparent focus:bg-white focus:border focus:border-blue-500 rounded px-1"
-                    />
-                  </div>
-                  {{ ' ' }}{{ rows()[virtualRow.index].subRows.length }}
-                } @else if (cell.getIsAggregated()) {
-                  <!-- If the cell is aggregated, use the Aggregated -->
-                  <!-- renderer for cell -->
-                  <div class="editable-cell">
-                    <input
-                      type="text"
-                      [value]="cell.getValue()"
-                      (change)="updateData(rows()[virtualRow.index].original, cell.column.id, $event)"
-                      class="w-full border-none bg-transparent focus:bg-white focus:border focus:border-blue-500 rounded px-1"
-                    />
-                  </div>
-                } @else if (cell.getIsPlaceholder()) {
-                  <ng-container />
-                } @else {
-                  <!-- For cells with repeated values, render null-->
-                  <!-- Otherwise, just render the regular cell-->
-                  <div class="editable-cell">
-                    <input
-                      type="text"
-                      [value]="cell.getValue()"
-                      (change)="updateData(rows()[virtualRow.index].original, cell.column.id, $event)"
-                      class="w-full border-none bg-transparent focus:bg-white focus:border focus:border-blue-500 rounded px-1"
-                    />
-                  </div>
-                }
-              }@else{
-                @if (cell.getIsGrouped()) {
-                  <!-- If it's a grouped cell, add an expander and row count -->
-                  <button
-                    (click)="rows()[virtualRow.index].toggleExpanded()"
-                    [style.cursor]="rows()[virtualRow.index].getCanExpand() ? 'pointer' : 'normal'"
-                  >
-                    {{ rows()[virtualRow.index].getIsExpanded() ? '👇 ' : '👉' }}
-                  </button>
-                  <ng-container
-                    *flexRender="
-                      cell.column.columnDef.cell;
-                      props: cell.getContext();
-                      let cell
-                    "
-                  >
-                    <span>{{ cell }}</span>
-                  </ng-container>
-                  {{ ' ' }}{{ rows()[virtualRow.index].subRows.length }}
-                } @else if (cell.getIsAggregated()) {
-                  <!-- If the cell is aggregated, use the Aggregated -->
-                  <!-- renderer for cell -->
-                  <ng-container
-                    *flexRender="
-                      cell.column.columnDef.aggregatedCell ??
+                }@else{
+                  @if (cell.getIsGrouped()) {
+                    <!-- If it's a grouped cell, add an expander and row count -->
+                    <button
+                      (click)="rows()[virtualRow.index].toggleExpanded()"
+                      [style.cursor]="rows()[virtualRow.index].getCanExpand() ? 'pointer' : 'normal'"
+                    >
+                      {{ rows()[virtualRow.index].getIsExpanded() ? '👇 ' : '👉' }}
+                    </button>
+                    <ng-container
+                      *flexRender="
                         cell.column.columnDef.cell;
-                      props: cell.getContext();
-                      let aggregatedCell
-                    "
-                  >
-                    {{ aggregatedCell }}
-                  </ng-container>
-                } @else if (cell.getIsPlaceholder()) {
-                  <ng-container />
-                } @else {
-                  <!-- For cells with repeated values, render null-->
-                  <!-- Otherwise, just render the regular cell-->
-                  <ng-container
-                    *flexRender="
-                      cell.column.columnDef.cell;
-                      props: cell.getContext();
-                      let cell
-                    "
-                  >
-                    {{ cell }}
-                  </ng-container>
-                }
-              }
-              
-                  <!-- <ng-container
-                    *flexRender="
-                      cell.column.columnDef.cell;
-                      props: cell.getContext();
-                      let cellValue
-                    "
-                  >
-                    {{ cellValue }}
-                  </ng-container> -->
-                </td>
-              }
-              <td>
-                <div class="addsubrows">
-                  <div class="flex gap-2">
-                    <button (click)="addSubCategory(rows()[virtualRow.index].original)">Add Sub-Category</button>
-                  <button (click)="addLineItem(rows()[virtualRow.index].original)">Add Line Item</button>
-    
-                  </div>
-                </div>
-                
-                
-              </td>
-            </tr>
-            @if (rows()[virtualRow.index].getIsExpanded() && rows()[virtualRow.index].original.children) {
-              @for (childRow of rows()[virtualRow.index].original.children; track childRow.firstName) {
-                <tr>
-                  @for (cell of rows()[virtualRow.index].getVisibleCells(); track cell.id) {
-                    <td [style.paddingLeft.px]="20">
-                      <ng-container
-                        *flexRender="
+                        props: cell.getContext();
+                        let cell
+                      "
+                    >
+                      <span>{{ cell }}</span>
+                    </ng-container>
+                    {{ ' ' }}{{ rows()[virtualRow.index].subRows.length }}
+                  } @else if (cell.getIsAggregated()) {
+                    <!-- If the cell is aggregated, use the Aggregated -->
+                    <!-- renderer for cell -->
+                    <ng-container
+                      *flexRender="
+                        cell.column.columnDef.aggregatedCell ??
                           cell.column.columnDef.cell;
-                          props: cell.getContext();
-                          let cell
-                        "
-                      >
-                        {{ cell }}
-                      </ng-container>
-                    </td>
+                        props: cell.getContext();
+                        let aggregatedCell
+                      "
+                    >
+                      {{ aggregatedCell }}
+                    </ng-container>
+                  } @else if (cell.getIsPlaceholder()) {
+                    <ng-container />
+                  } @else {
+                    <!-- For cells with repeated values, render null-->
+                    <!-- Otherwise, just render the regular cell-->
+                    <ng-container
+                      *flexRender="
+                        cell.column.columnDef.cell;
+                        props: cell.getContext();
+                        let cell
+                      "
+                    >
+                      {{ cell }}
+                    </ng-container>
                   }
-                </tr>
+                }
+                
+                    <!-- <ng-container
+                      *flexRender="
+                        cell.column.columnDef.cell;
+                        props: cell.getContext();
+                        let cellValue
+                      "
+                    >
+                      {{ cellValue }}
+                    </ng-container> -->
+                  </td>
+                }
+                <td>
+                  <div class="addsubrows">
+                    <div class="flex gap-2">
+                      <button (click)="addSubCategory(rows()[virtualRow.index].original)">Add Sub-Category</button>
+                    <button (click)="addLineItem(rows()[virtualRow.index].original)">Add Line Item</button>
+      
+                    </div>
+                  </div>
+                  
+                  
+                </td>
+              </tr>
+              @if (rows()[virtualRow.index].getIsExpanded() && rows()[virtualRow.index].original.children) {
+                @for (childRow of rows()[virtualRow.index].original.children; track childRow.firstName) {
+                  <tr>
+                    @for (cell of rows()[virtualRow.index].getVisibleCells(); track cell.id) {
+                      <td [style.paddingLeft.px]="20">
+                        <ng-container
+                          *flexRender="
+                            cell.column.columnDef.cell;
+                            props: cell.getContext();
+                            let cell
+                          "
+                        >
+                          {{ cell }}
+                        </ng-container>
+                      </td>
+                    }
+                  </tr>
+                }
               }
             }
-          }
-        </tbody>
-      </table>
-    </div>
+          </tbody>
+        </table>
+      </div>
+    }
+    
   </div>
 
   
@@ -294,21 +301,22 @@
   <div class="flex items-center gap-2 pagination-controls">
     <button
       class="border rounded p-1"
-      (click)="table.setPageIndex(0) ;virtualizer.scrollToIndex(0)"
+      (click)="table.setPageIndex(0) ;virtualizer.scrollToIndex(0) ;  "
+      
       [disabled]="!table.getCanPreviousPage()"
     >
       <<
     </button>
     <button
       class="border rounded p-1"
-      (click)="table.previousPage();virtualizer.scrollToIndex(0)"
+      (click)="table.previousPage(); virtualizer.scrollToIndex(0)"
       [disabled]="!table.getCanPreviousPage()"
     >
       <
     </button>
     <button
       class="border rounded p-1"
-      (click)="table.nextPage();virtualizer.scrollToIndex(0)"
+      (click)="table.nextPage();virtualizer.scrollToIndex(3)"
       [disabled]="!table.getCanNextPage()"
     >
       >
